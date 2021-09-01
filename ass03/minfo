@@ -1,0 +1,148 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about cast and crew for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: minfo 'MovieTitlePattern' [Year]"
+year = ''
+
+
+# process command-line args
+argc = len(sys.argv)
+
+if argc == 2:
+	# no year
+	match = sys.argv[1]
+elif argc == 3:
+	# normal usage
+	match = sys.argv[1]
+	year = sys.argv[2]
+
+	if year != '' and not year.isnumeric():
+		print(usage)
+		exit(0)
+else:
+	# Bad usage
+	print(usage)
+	exit(0)
+
+start = 0
+stop = len(match)
+
+i = match.find("'", start, stop)
+
+if i != -1:
+	match = match[:i] + "'" + match[i:]
+
+# manipulate database
+
+try:
+	db = psycopg2.connect("dbname=imdb")
+
+	cur = db.cursor()
+
+	query1 = f"""
+		select id, title, start_year
+		from movies
+		where title ~* '{match}'
+	"""
+	if year != '':
+
+		# query to execute
+		query1 += f"""
+			and start_year = {year}
+		"""
+	query1 += f"""
+		order by 
+		start_year,
+		title;"""
+
+	cur.execute(query1)
+
+	movies = cur.fetchall()
+	if len(movies) == 0:
+		# No matching Movies
+		if year != '':
+			print(f"No movie matching '{match}' {year}")
+		else:
+			print(f"No movie matching '{match}'")
+
+	elif len(movies) > 1:
+		# Multiple matching Movies
+		if year != '':
+			print(f"Movies matching '{match}' {year}")
+		else:
+			print(f"Movies matching '{match}'")
+		print("===============")
+		for movie in movies:
+			print(f"{movie[1]} ({movie[2]})")
+
+	elif len(movies) == 1:
+		movie = movies[0]
+		print(f'{movie[1]} ({movie[2]})')
+		print("===============")
+		print("Starring")
+		starring_query = f"""
+			select name, played from 
+			(select * 
+				from names n 
+				join
+				(select *
+					from acting_roles ar 
+					join 
+					movies m 
+					on (ar.movie_id = m.id) 
+					where movie_id = {movie[0]}) a
+				on (n.id = a.name_id)) as b
+			join 
+			Principals p 
+			on (b.name_id = p.name_id)
+			where b.movie_id = p.movie_id
+			order by 
+			ordering, 
+			played"""
+
+		cur.execute(starring_query)
+		starring = cur.fetchall()
+		for name in starring:
+			print (f' {name[0]} as {name[1]}')
+
+		print("and with")
+
+		crew_query = f"""
+		select name, role from 
+		(select * 
+			from names n 
+			join
+			(select *
+				from crew_roles ar 
+				join 
+				movies m 
+				on (ar.movie_id = m.id) 
+				where movie_id = {movie[0]}) a
+			on (n.id = a.name_id)) as b
+		join 
+		Principals p 
+		on (b.name_id = p.name_id)
+		where b.movie_id = p.movie_id
+		order by 
+		ordering, 
+		role"""
+		
+		cur.execute(crew_query)
+		crew = cur.fetchall()
+		for name in crew:
+			print(f' {name[0]}: {name[1].title()}')
+
+except psycopg2.Error as err:
+	print("DB error: ", err)
+finally:
+	if db:
+		db.close()
+

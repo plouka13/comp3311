@@ -1,0 +1,31 @@
+# COMP3311 20T3 Final Exam Q12
+
+(a)
+T1:           W(Y)     W(X)
+T2:  R(Y)                       W(X)
+T3:                                      W(X)
+
+X: T1 -> T2
+Y: T2 -> T1
+
+since the above precendences cause a loop in a precendence graph
+we can deduce that the above graph is not conflict serializable.
+
+(b)
+Original schedule S
+T1:           W(Y)     W(X)
+T2:  R(Y)                       W(X)
+T3:                                      W(X)
+
+Since T1 - T3, we have 3! = 6 possible serial schedules.
+
+Since T3 writes X last and there are no other operations, we have to keep T3 W(X) last.
+
+therefore...
+
+T1:                    W(Y)     W(X)
+T2:  R(Y)    W(X)
+T3:                                      W(X)
+
+is view equivalent to S
+and therefore S is view serializable

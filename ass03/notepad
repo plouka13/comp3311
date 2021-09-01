@@ -1,0 +1,10 @@
+select * from
+movies m
+join
+crew_roles cr
+on (m.id = cr.movie_id)
+join
+principals p
+on (m.id = p.movie_id)
+where p.name_id = 2000186
+order by start_year, title, role;

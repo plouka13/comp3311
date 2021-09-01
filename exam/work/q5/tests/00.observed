@@ -1,0 +1,1 @@
+psql:q5.sql:41: ERROR:  loop variable of loop over rows must be a record variable or list of scalar variables

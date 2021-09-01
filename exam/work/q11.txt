@@ -1,0 +1,17 @@
+# COMP3311 20T3 Final Exam Q11
+
+(a) select * from R;
+
+Res = R(a, b, c)
+
+(b) select a,b from R where c < 0;
+
+Res(a, b) = Sel[c < 0](R)
+
+(c) select a,d from R join S on (b = e) where c < 0;
+
+Res(a, d) = Sel[c < 0](R Join[b=e] S)
+
+(d) select b,c,e,f from R natural join T natural join S;
+
+Res(b, c, e, f) = (R Join S) join T

@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... get Name's biography/filmography
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+def birth_death(birth, death):
+	string = ''
+	if birth == None:
+		string += ' (???)'
+	else:
+		string += f' ({birth}-'
+		if death != None:
+			string += f'{death}'
+		string += ')'
+
+	return string
+
+def is_principal(cur, movie_id, name_id):
+	query = f"""
+	select * from principals
+	where movie_id = {movie_id}
+	and name_id = {name_id}
+	"""
+	cur.execute(query)
+	return cur.fetchall()
+
+# set up some globals
+
+usage = "Usage: bio 'NamePattern' [Year]"
+db = None
+
+# process command-line args
+argc = len(sys.argv)
+
+year = ''
+
+if argc == 2:
+	# no year
+	match = sys.argv[1]
+elif argc == 3:
+	# normal usage
+	match = sys.argv[1]
+	year = sys.argv[2]
+
+	if year != '' and not year.isnumeric():
+		print(usage)
+		exit(0)
+else:
+	# Bad usage
+	print(usage)
+	exit(0)
+
+# manipulate database
+try:
+	db = psycopg2.connect("dbname=imdb")
+
+	cur = db.cursor()
+	
+	query1 = f"""
+	select id, name, birth_year, death_year
+	from
+	names n
+	where name ~* '{match}'
+	"""
+	if year != '':
+		query1 += f'and birth_year = {year}'
+	
+	query1 += """
+	order by 
+	name,
+	birth_year;
+	"""
+
+	cur.execute(query1)
+
+	names = cur.fetchall()
+
+	if len(names) == 0:
+		print(f"No name matching '{match}'")
+	elif len(names) > 1:
+		print(f"Names matching '{match}'")
+		print("===============")
+		for name in names:
+			string = f'{name[1]}'
+			string += birth_death(name[2], name[3])
+			print(string)
+
+	elif len(names) == 1:
+		name = names[0]
+		bd = birth_death(name[2], name[3])
+		print(f"Filmography for {name[1]}{bd}")
+		print("===============")
+
+		filmography = []
+
+		acting_query = f"""
+		select ar.played, title, start_year from
+		movies m
+		join
+		acting_roles ar
+		on (m.id = ar.movie_id)
+		where ar.name_id = {name[0]}
+		order by start_year, title, ar.played
+		"""
+
+		cur.execute(acting_query)
+
+		result = cur.fetchall()
+
+		for character in result:
+			film_dict = {
+				'title': f'{character[1]} ({character[2]})',
+				'roles': [f'playing {character[0]}'],
+				'year': character[2]
+			}
+			exists = 0
+			for film in filmography:
+				if f'{character[1]} ({character[2]})' == film['title']:
+					film['roles'].append(f'playing {character[0]}')
+					exists = 1
+					break
+			if exists == 0:
+				filmography.append(film_dict)
+
+		crew_query = f"""
+		select cr.role, title, start_year, movie_id from
+		movies m
+		join
+		crew_roles cr
+		on (m.id = cr.movie_id)
+		where cr.name_id = {name[0]}
+		order by start_year, title, role
+		"""
+
+		cur.execute(crew_query)
+
+		result = cur.fetchall()
+
+
+
+	
+		for crew_role in result:
+			film_dict = {
+				'title': f'{crew_role[1]} ({crew_role[2]})',
+				'roles': [f'as {crew_role[0].capitalize().replace("_", " ")}'],
+				'year': crew_role[2]
+			}
+			exists = 0
+			for film in filmography:
+				if f'{crew_role[1]} ({crew_role[2]})' == film['title']:
+					film['roles'].append(f'as {crew_role[0].capitalize().replace("_", " ")}')
+					exists = 1
+					break
+			if exists == 0 and is_principal(cur, crew_role[3], name[0]):
+				filmography.append(film_dict)
+
+		
+		
+		filmography = sorted(filmography, key=lambda k: (k['year'], k['title']))
+
+		for film in filmography:
+			print(f"{film['title']}")
+			for role in film['roles']:
+				print(' ' + role)
+
+except psycopg2.Error as err:
+	print("DB error: ", err)
+finally:
+	if db:
+		db.close()
+

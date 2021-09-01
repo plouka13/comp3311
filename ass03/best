@@ -1,0 +1,54 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print name, year, ratings of top N movies
+
+import sys
+import psycopg2
+
+usage = "Usage: best [N]"
+db = None
+
+# process command-line args
+# n is the first arg, default is 10
+argc = len(sys.argv)
+
+if argc == 1:
+    n = 10
+
+elif argc > 2 or not sys.argv[1].isnumeric() or sys.argv[1] == '0':
+	# Error Handling
+    print(usage)
+    exit(0)
+    
+else:
+	# Get n from first arg
+    n = sys.argv[1]
+
+# manipulate database
+try:
+    db = psycopg2.connect("dbname=imdb")
+    cur = db.cursor()
+
+    # query to execute
+    query = f"""
+    select rating, title, start_year 
+    from movies 
+    order by 
+    rating desc,
+    title asc
+    limit {n};
+    """
+
+    cur.execute(query)
+
+    for movie in cur.fetchall():
+        print(f"{movie[0]} {movie[1]} ({movie[2]})")
+
+    cur.close()
+
+except psycopg2.Error as err:
+    print("DB error: ", err)
+
+finally:
+    if db:
+        db.close()
+

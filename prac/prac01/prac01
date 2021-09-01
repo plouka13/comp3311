@@ -1,0 +1,16 @@
+1. How many movies in the database?
+	<select count(*) from Movies;>
+2. What are the titles of all movies in the database?
+	<select title from Movies;>
+3. What is the earliest year that film was made in this database?
+	<select min(year) from Movies;>
+4. How many actors are there in this database?
+	<select count(*) from Actors;>
+5. Are there any actors whose family name is "Zeta-Jones"?
+	<IDK!!!!>
+6. What genres are there?
+	<select genre from BelongsTo;>
+7. What movies did Spielberg direct?
+8. Which actor has acted in all movies in this database?
+9. Are there any directors in the database who don't direct any movies?
+

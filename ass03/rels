@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about different releases for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: rels 'PartialMovieTitle'"
+db = None
+
+# process command-line args
+argc = len(sys.argv)
+
+if argc != 2:
+    # Only 1 arg for
+    print(usage)
+    exit(0)
+
+match = sys.argv[1]
+
+start = 0
+stop = len(match)
+
+i = match.find("'", start, stop)
+
+if i != -1:
+    match = match[:i] + "'" + match[i:]
+
+# manipulate database
+try:
+    db = psycopg2.connect("dbname=imdb")
+    cur = db.cursor()
+
+    # query to execute
+    query1 = f"""
+    select id, title, start_year
+    from movies
+    where title ~* '{match}'
+    order by 
+    start_year,
+    title
+    """
+    cur.execute(query1)
+
+    res1 = cur.fetchall()
+    if len(res1) == 0:
+        # No matching Movies
+        print(f"No movie matching '{match}'")
+
+    elif len(res1) > 1:
+        # Multiple matching Movies
+        print(f"Movies matching '{match}'")
+        print("===============")
+        for movie in res1:
+            print(f"{movie[1]} ({movie[2]})")
+
+    elif len(res1) == 1:
+        # One matching Movie
+        movie = res1[0]
+        print(f"{movie[1]} ({movie[2]}) was also released as")
+        query2 = f"""
+        select local_title, region, language 
+        from aliases 
+        where movie_id = {movie[0]}
+        order by
+        ordering
+        ;
+        """
+        cur.execute(query2)
+
+        for alias in cur.fetchall():
+            if alias[1] and alias[2]:
+                print(f"'{alias[0]}' (region: {alias[1].strip()}, language: {alias[2].strip()})")
+            elif alias[1]:
+                print(f"'{alias[0]}' (region: {alias[1].strip()})")
+            elif alias[2]:
+                print(f"'{alias[0]}' (language: {alias[2].strip()})")
+            else:
+                 print(f"'{alias[0]}')")
+
+    cur.close()
+except psycopg2.Error as err:
+    print("DB error: ", err)
+finally:
+    if db:
+        db.close()
+

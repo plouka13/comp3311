@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q6: discography for one group, given by Groups.id
+
+import sys
+import psycopg2
+
+def check_is_valid (cur, groupID):
+   
+   invalid_message = "Invalid group ID"
+
+   check_id_q = f"""
+   select id, name from groups where id = {groupID};
+   """
+
+   cur.execute(check_id_q)
+   res = cur.fetchall()
+   if len(res) < 1:
+      print(invalid_message)
+      exit (0)
+   
+   return res[0][1]
+
+def get_albums (cur, groupID):
+   
+   query = f"""
+   select id, title, year, genre from
+   albums where made_by = {groupID};
+   """
+   cur.execute(query)
+   res = cur.fetchall()
+   return res
+
+def get_songs (cur, album_id):
+   query = f"""
+   select trackno, title, length from
+   songs where on_album = {album_id}"""
+
+   cur.execute(query)
+   res = cur.fetchall()
+   return res
+
+def get_time (time):
+   time %= 3600
+   minutes = time // 60
+   seconds = time % 60
+
+   return minutes, seconds
+
+
+
+db = None
+cur = None
+usage = f"Usage: {sys.argv[0]} GroupID"
+
+# process command-line args
+
+if len(sys.argv) < 2:
+   print(usage)
+   exit(1)
+groupID = sys.argv[1]
+if not groupID.isnumeric():
+   print(usage)
+   exit(1)
+
+try:
+   db = psycopg2.connect("dbname=music")
+   cur = db.cursor()
+
+   group_name = check_is_valid(cur, groupID)
+
+   print(f"Discography for {group_name}")
+
+   albums = get_albums(cur, groupID)
+
+   for album in albums:
+      songs = get_songs(cur, album[0])
+      print("--------------------")
+      print (f"{album[1]} ({album[2]}) ({album[3]})")
+      print("--------------------")
+      for song in songs:
+         minutes, seconds = get_time(song[2])
+         print("%2d. %s (%d:%02d)" %(song[0], song[1], minutes, seconds))
+
+   
+
+
+except psycopg2.Error as err:
+   print("DB error: ", err)
+finally:
+   if cur:
+       cur.close()
+   if db:
+      db.close()
+
